@@ -1,0 +1,994 @@
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          example: "johndoe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        password:
+          type: string
+          format: password
+          example: "password123"
+        isAdmin:
+          type: boolean
+          example: false
+
+    Video:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "6790bff291663dbe9f249c4f"
+        title:
+          type: string
+          example: "My Test Video"
+        slug:
+          type: string
+          example: "my-test-video"
+        description:
+          type: string
+          example: "This is a test video description"
+        version:
+          type: number
+          example: 1
+        videoFile:
+          type: object
+          properties:
+            filename:
+              type: string
+              example: "my-test-video-2024.03.22-14.30.22.mp4"
+            size:
+              type: number
+              example: 9017575
+            mimetype:
+              type: string
+              example: "video/mp4"
+        thumbnailFile:
+          type: object
+          properties:
+            filename:
+              type: string
+              example: "my-test-video-2024.03.22-14.30.22.jpg"
+            size:
+              type: number
+              example: 1485585
+            mimetype:
+              type: string
+              example: "image/jpeg"
+        videoUrl:
+          type: string
+          example: "http://localhost:5000/uploads/videos/my-test-video.mp4"
+        thumbnailUrl:
+          type: string
+          example: "http://localhost:5000/uploads/thumbnails/my-test-video.jpg"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login endpoint
+
+  responses:
+    UnauthorizedError:
+      description: Authentication token is missing or invalid
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "error"
+              message:
+                type: string
+                example: "Please authenticate"
+
+    ValidationError:
+      description: Invalid input data
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "error"
+              message:
+                type: string
+                example: "Invalid input data"
+
+    BadRequestError:
+      description: Invalid request data
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "error"
+              message:
+                type: string
+                example: "Invalid request data"
+              errors:
+                type: array
+                items:
+                  type: string
+                example: ["Title is required", "Invalid file format"]
+
+    RateLimitError:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "error"
+              message:
+                type: string
+                example: "Rate limit exceeded. Try again in 60 seconds"
+              retryAfter:
+                type: number
+                example: 60
+
+    FileUploadError:
+      description: File upload failed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "error"
+              message:
+                type: string
+              field:
+                type: string
+              details:
+                type: object
+            examples:
+              sizeLimitExceeded:
+                value:
+                  status: "error"
+                  message: "File too large. Maximum size is 2GB"
+                  field: "video"
+              invalidFormat:
+                value:
+                  status: "error"
+                  message: "Invalid file format. Allowed types: MP4, WebM, OGG"
+                  field: "video"
+              missingFile:
+                value:
+                  status: "error"
+                  message: "Please upload both video and thumbnail"
+
+    DatabaseError:
+      description: Database operation failed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "error"
+              message:
+                type: string
+              code:
+                type: string
+            examples:
+              duplicateKey:
+                value:
+                  status: "error"
+                  message: "A video with this title already exists"
+                  code: "DUPLICATE_KEY"
+              notFound:
+                value:
+                  status: "error"
+                  message: "Video not found"
+                  code: "NOT_FOUND"
+
+  examples:
+    RegisterUser:
+      value:
+        username: "johndoe"
+        email: "john@example.com"
+        password: "securePassword123"
+
+    LoginUser:
+      value:
+        login: "johndoe"
+        password: "securePassword123"
+
+    UploadVideo:
+      value:
+        title: "My Awesome Video"
+        description: "This is a description of my video"
+        video: "(binary)"
+        thumbnail: "(binary)"
+
+    BulkDelete:
+      value:
+        ids: ["6790bff291663dbe9f249c4f", "6790c197c6ac0b78a043db04"]
+
+  headers:
+    X-Rate-Limit:
+      schema:
+        type: integer
+      description: Number of requests remaining
+    X-Rate-Reset:
+      schema:
+        type: integer
+      description: Time until rate limit resets (in seconds)
+    X-Total-Count:
+      schema:
+        type: integer
+      description: Total number of items
+
+paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        201:
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/User"
+                      token:
+                        type: string
+        400:
+          description: User already exists
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    username:
+                      type: string
+                      example: "admin"
+                    password:
+                      type: string
+                      example: "admin123"
+                - type: object
+                  properties:
+                    login:
+                      type: string
+                      example: "admin@example.com"
+                    password:
+                      type: string
+                      example: "admin123"
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/User"
+                      token:
+                        type: string
+        401:
+          description: Invalid credentials
+
+  /api/videos/check-title:
+    post:
+      tags:
+        - Videos
+      summary: Check if video title is available
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "My Test Video"
+      responses:
+        200:
+          description: Title availability checked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      available:
+                        type: boolean
+                        example: true
+
+  /api/videos/upload:
+    post:
+      tags:
+        - Videos
+      summary: Upload a new video
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - title
+                - video
+                - thumbnail
+              properties:
+                title:
+                  type: string
+                  example: "My Test Video"
+                description:
+                  type: string
+                  example: "This is a test video"
+                video:
+                  type: string
+                  format: binary
+                thumbnail:
+                  type: string
+                  format: binary
+      responses:
+        201:
+          description: Video uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      video:
+                        $ref: "#/components/schemas/Video"
+        400:
+          description: Upload error
+
+  /api/videos/{id}:
+    delete:
+      tags:
+        - Videos
+      summary: Delete a video
+      description: |
+        Delete a video and its associated files.
+        Note: This endpoint allows any authenticated user to delete any video.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Video ID to delete
+      responses:
+        200:
+          description: Video deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Video deleted successfully"
+        404:
+          description: Video not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Video not found"
+
+    patch:
+      tags:
+        - Videos
+      summary: Update video metadata
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Video ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Updated Video Title"
+                description:
+                  type: string
+                  example: "Updated description"
+      responses:
+        200:
+          description: Video updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      video:
+                        $ref: "#/components/schemas/Video"
+
+  /api/videos/{id}/video:
+    put:
+      tags:
+        - Videos
+      summary: Update video file
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Video ID
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - video
+              properties:
+                video:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: Video file updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      video:
+                        $ref: "#/components/schemas/Video"
+
+  /api/videos/{id}/thumbnail:
+    put:
+      tags:
+        - Videos
+      summary: Update thumbnail
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Video ID
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - thumbnail
+              properties:
+                thumbnail:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: Thumbnail updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      video:
+                        $ref: "#/components/schemas/Video"
+
+  /api/videos/bulk-delete:
+    post:
+      tags:
+        - Videos
+      summary: Bulk delete videos
+      description: |
+        Delete multiple videos and their associated files.
+        Note: This endpoint allows any authenticated user to delete any videos.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                  example: ["video_id_1", "video_id_2"]
+      responses:
+        200:
+          description: Videos deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      deletedCount:
+                        type: number
+                        example: 2
+                      successfulDeletes:
+                        type: array
+                        items:
+                          type: string
+                        example: ["video_id_1", "video_id_2"]
+
+  /api/public/videos:
+    get:
+      tags:
+        - Public
+      summary: Get all videos (public)
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+          description: Items per page
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [newest, oldest, title]
+            default: newest
+          description: Sort order
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search videos by title or description
+      responses:
+        200:
+          description: List of all videos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      videos:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: "#/components/schemas/Video"
+                            - type: object
+                              properties:
+                                createdAt:
+                                  type: string
+                                  format: date-time
+                                  example: "2024-03-22T14:30:22.123Z"
+                                updatedAt:
+                                  type: string
+                                  format: date-time
+                                  example: "2024-03-22T15:45:33.456Z"
+
+  /api/public/videos/{slug}:
+    get:
+      tags:
+        - Public
+      summary: Get single video by slug
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+          description: Video slug
+      responses:
+        200:
+          description: Video details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      video:
+                        allOf:
+                          - $ref: "#/components/schemas/Video"
+                          - type: object
+                            properties:
+                              createdAt:
+                                type: string
+                                format: date-time
+                                example: "2024-03-22T14:30:22.123Z"
+                              updatedAt:
+                                type: string
+                                format: date-time
+                                example: "2024-03-22T15:45:33.456Z"
+        404:
+          description: Video not found
+
+  /api/public/player/{slug}:
+    get:
+      tags:
+        - Public
+      summary: Get video player page
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+          description: Video slug
+      responses:
+        200:
+          description: HTML page with video player
+          content:
+            text/html:
+              schema:
+                type: string
+        404:
+          description: Video not found
+
+  /health:
+    get:
+      tags:
+        - System
+      summary: Check API health
+      description: Returns the health status of the API
+      responses:
+        200:
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "OK"
+                  message:
+                    type: string
+                    example: "Server is running"
+
+  /uploads/videos/{filename}:
+    get:
+      tags:
+        - Streaming
+      summary: Stream video file
+      description: |
+        Streams video with support for:
+        - Range requests
+        - Seeking
+        - Partial content
+        - Adaptive bitrate
+      parameters:
+        - in: path
+          name: filename
+          required: true
+          schema:
+            type: string
+          description: Video filename
+        - in: header
+          name: Range
+          schema:
+            type: string
+            example: "bytes=0-1048575"
+          description: Byte range for partial content
+      responses:
+        200:
+          description: Full content response
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "video/mp4"
+            Content-Length:
+              schema:
+                type: integer
+              example: 1048576
+            Accept-Ranges:
+              schema:
+                type: string
+              example: "bytes"
+            Cache-Control:
+              schema:
+                type: string
+              example: "public, max-age=3600"
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        206:
+          description: Partial content response
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "video/mp4"
+            Content-Length:
+              schema:
+                type: integer
+              example: 1048576
+            Content-Range:
+              schema:
+                type: string
+              example: "bytes 0-1048575/5242880"
+            Accept-Ranges:
+              schema:
+                type: string
+              example: "bytes"
+            Cache-Control:
+              schema:
+                type: string
+              example: "public, max-age=3600"
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        416:
+          description: Range Not Satisfiable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Requested range not satisfiable"
+
+  /uploads/thumbnails/{filename}:
+    get:
+      tags:
+        - Streaming
+      summary: Get thumbnail image
+      parameters:
+        - in: path
+          name: filename
+          required: true
+          schema:
+            type: string
+          description: Thumbnail filename
+      responses:
+        200:
+          description: Image response
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              example: "image/jpeg"
+            Cache-Control:
+              schema:
+                type: string
+              example: "public, max-age=3600"
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+
+  /api/videos/{id}/update-all:
+    put:
+      tags:
+        - Videos
+      summary: Update entire video (metadata and files)
+      description: |
+        Update video title, description, video file, and thumbnail in one request.
+        Note: This endpoint allows any authenticated user to update any video.
+        At least one field must be provided for update.
+        For updates:
+        - Title is optional (existing title will be kept if not provided)
+        - Description is optional
+        - Video file is optional
+        - Thumbnail is optional
+        But at least one of these fields must be provided.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Video ID
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Updated Video Title"
+                description:
+                  type: string
+                  example: "Updated video description"
+                video:
+                  type: string
+                  format: binary
+                thumbnail:
+                  type: string
+                  format: binary
+              minProperties: 1
+      responses:
+        200:
+          description: Video updated successfully
+        400:
+          description: Bad Request
+        401:
+          $ref: "#/components/responses/UnauthorizedError"
+        404:
+          description: Video not found
+
+tags:
+  - name: Authentication
+    description: User authentication endpoints
+  - name: Videos
+    description: Video management endpoints (requires authentication)
+  - name: Public
+    description: Public access endpoints (no authentication required)
+  - name: Streaming
+    description: Video and thumbnail streaming endpoints
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://api.dreamradio.com
+    description: Production server
+
+info:
+  title: Dream Radio Video API
+  version: 1.0.0
+  description: |
+    API documentation for Dream Radio video streaming service.
+
+    ## Authentication
+    Most endpoints require JWT authentication. To get a token:
+    1. Register a new user
+    2. Login to get JWT token
+    3. Use token in Authorization header
+
+    ## File Uploads
+    - Video formats: MP4, WebM, OGG
+    - Image formats: JPEG, PNG, WebP, GIF
+    - Max video size: 2GB
+    - Max thumbnail size: 10MB
+
+    ## Rate Limits
+    - Authentication: 5 requests per minute
+    - Video uploads: 10 per hour
+    - API calls: 100 per minute
+
+  contact:
+    name: API Support
+    email: support@dreamradio.com
+    url: https://dreamradio.com/support
+
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT

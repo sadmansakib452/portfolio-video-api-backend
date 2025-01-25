@@ -1,0 +1,23 @@
+mkdir src
+mkdir src/controllers
+mkdir src/models
+mkdir src/routes
+mkdir src/middleware
+mkdir src/config
+mkdir src/utils
+mkdir src/tests
+mkdir uploads
+mkdir uploads/videos
+mkdir uploads/thumbnails
+
+# Create empty .gitkeep files using echo
+echo. > uploads\videos\.gitkeep
+echo. > uploads\thumbnails\.gitkeep
+
+# Install all dependencies in one command
+npm install express mongoose dotenv cors bcryptjs jsonwebtoken
+
+# Install dev dependencies
+npm install -D nodemon morgan jest supertest @types/jest
+
+npm run dev
