@@ -1,8 +1,8 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
 const { logger } = require("../utils/logger");
-const crypto = require('crypto');
-const sendEmail = require('../utils/email.utils');
+const crypto = require("crypto");
+const sendEmail = require("../utils/email.utils");
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -116,21 +116,21 @@ const requestPasswordReset = async (req, res) => {
     const { email } = req.body;
 
     // Find admin by email
-    const admin = await User.findOne({ 
+    const admin = await User.findOne({
       email,
       isAdmin: true,
-      isSuperAdmin: false
+      isSuperAdmin: false,
     });
 
     if (!admin) {
       return res.status(404).json({
         status: "error",
-        message: "No admin found with this email"
+        message: "No admin found with this email",
       });
     }
 
     // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
     admin.resetPasswordToken = resetToken;
     admin.resetPasswordExpires = Date.now() + 3600000; // 1 hour
 
@@ -145,21 +145,20 @@ const requestPasswordReset = async (req, res) => {
       subject: "Reset Your Password - Dream Radio",
       templateName: "reset-password",
       templateData: {
-        name: admin.name || admin.email,
-        resetLink: resetUrl
-      }
+        name: admin.username,
+        resetLink: resetUrl,
+      },
     });
 
     res.json({
       status: "success",
-      message: "Password reset email sent"
+      message: "Password reset email sent",
     });
-
   } catch (error) {
     logger.error("Password reset request failed:", error);
     res.status(500).json({
       status: "error",
-      message: "Failed to send reset email"
+      message: "Failed to send reset email",
     });
   }
 };
@@ -173,13 +172,13 @@ const resetPassword = async (req, res) => {
     // Find admin by token and check expiration
     const admin = await User.findOne({
       resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() }
+      resetPasswordExpires: { $gt: Date.now() },
     });
 
     if (!admin) {
       return res.status(400).json({
         status: "error",
-        message: "Invalid or expired reset token"
+        message: "Invalid or expired reset token",
       });
     }
 
@@ -192,14 +191,13 @@ const resetPassword = async (req, res) => {
 
     res.json({
       status: "success",
-      message: "Password reset successful"
+      message: "Password reset successful",
     });
-
   } catch (error) {
     logger.error("Password reset failed:", error);
     res.status(500).json({
       status: "error",
-      message: "Failed to reset password"
+      message: "Failed to reset password",
     });
   }
 };

@@ -101,20 +101,6 @@ const sendEmail = async ({ email, subject, templateName, templateData }) => {
       to: email,
       subject: subject,
       html: html,
-      attachments: [
-        {
-          filename: "logo.png",
-          path: path.join(
-            __dirname,
-            "..",
-            "templates",
-            "email",
-            "assets",
-            "logo.png"
-          ),
-          cid: "logo",
-        },
-      ],
     };
 
     await transporter.sendMail(mailOptions);
