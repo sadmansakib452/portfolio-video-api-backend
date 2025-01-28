@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
@@ -10,6 +11,7 @@ const publicRoutes = require("./routes/public.routes");
 const multer = require("multer");
 const { streamVideo } = require("./middleware/stream.middleware");
 const { morganMiddleware, logger } = require("./utils/logger");
+const adminRoutes = require("./routes/admin.routes");
 
 const app = express();
 
@@ -95,6 +97,9 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/videos", videoRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/public", publicRoutes);
+
+// Add admin routes
+app.use("/api/admins", adminRoutes);
 
 // Basic route for testing
 app.get("/health", (req, res) => {

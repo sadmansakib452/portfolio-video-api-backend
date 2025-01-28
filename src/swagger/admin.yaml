@@ -1,0 +1,289 @@
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "error"
+        message:
+          type: string
+
+/api/admins:
+  post:
+    tags:
+      - Admin Management
+    summary: Create new admin
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - username
+              - email
+              - password
+            properties:
+              username:
+                type: string
+                example: "newadmin"
+              email:
+                type: string
+                example: "admin@example.com"
+              password:
+                type: string
+                example: "admin123"
+    responses:
+      201:
+        description: Admin created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                data:
+                  type: object
+                  properties:
+                    admin:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        username:
+                          type: string
+                        email:
+                          type: string
+                        role:
+                          type: string
+                          enum: ["admin"]
+                        createdAt:
+                          type: string
+                          format: date-time
+      400:
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      401:
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      403:
+        description: Super admin access required
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+
+  get:
+    tags:
+      - Admin Management
+    summary: Get all admins
+    security:
+      - bearerAuth: []
+    responses:
+      200:
+        description: List of all admins
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                data:
+                  type: object
+                  properties:
+                    admins:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          _id:
+                            type: string
+                          username:
+                            type: string
+                          email:
+                            type: string
+                          role:
+                            type: string
+                          createdAt:
+                            type: string
+                            format: date-time
+      401:
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      403:
+        description: Super admin access required
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+
+/api/admins/{id}:
+  delete:
+    tags:
+      - Admin Management
+    summary: Delete an admin
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Admin ID
+    responses:
+      200:
+        description: Admin deleted successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                message:
+                  type: string
+                  example: "Admin deleted successfully"
+      401:
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      403:
+        description: Super admin access required or trying to delete super admin
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      404:
+        description: Admin not found
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+
+  put:
+    tags:
+      - Admin Management
+    summary: Update admin information (full update)
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Admin ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+                example: "updatedadmin"
+              email:
+                type: string
+                example: "updated@example.com"
+              password:
+                type: string
+                example: "newpassword123"
+    responses:
+      200:
+        description: Admin updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                data:
+                  type: object
+                  properties:
+                    admin:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        username:
+                          type: string
+                        email:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                        updatedAt:
+                          type: string
+                          format: date-time
+      400:
+        $ref: "#/components/responses/ValidationError"
+      401:
+        $ref: "#/components/responses/Unauthorized"
+      403:
+        $ref: "#/components/responses/Forbidden"
+      404:
+        $ref: "#/components/responses/NotFound"
+
+  patch:
+    tags:
+      - Admin Management
+    summary: Update admin information (partial update)
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Admin ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+                example: "updatedadmin"
+              email:
+                type: string
+                example: "updated@example.com"
+              password:
+                type: string
+                example: "newpassword123"
+    responses:
+      200:
+        $ref: "#/components/responses/AdminUpdateSuccess"
+      400:
+        $ref: "#/components/responses/ValidationError"
+      401:
+        $ref: "#/components/responses/Unauthorized"
+      403:
+        $ref: "#/components/responses/Forbidden"
+      404:
+        $ref: "#/components/responses/NotFound"

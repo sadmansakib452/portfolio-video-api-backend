@@ -135,28 +135,6 @@ const generateFileUrls = (video) => {
   };
 };
 
-// Get all videos with file URLs
-const getAllVideos = async (req, res) => {
-  try {
-    const videos = await Video.find()
-      .populate("user", "username")
-      .select("-__v -createdAt -updatedAt")
-      .lean({ virtuals: true });
-
-    const videosWithUrls = videos.map(generateFileUrls);
-
-    res.json({
-      status: "success",
-      data: { videos: videosWithUrls },
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: error.message,
-    });
-  }
-};
-
 // Delete video
 const deleteVideo = async (req, res) => {
   try {
@@ -628,14 +606,63 @@ const updateAllVideoData = async (req, res) => {
   }
 };
 
+const getVideos = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const videos = await Video.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const total = await Video.countDocuments();
+
+    const transformedVideos = videos.map((video) => ({
+      _id: video._id,
+      title: video.title,
+      videoUrl: `${process.env.SERVER_URL}/uploads/videos/${video.videoFile.filename}`,
+      thumbnailUrl: `${process.env.SERVER_URL}/uploads/thumbnails/${video.thumbnailFile.filename}`,
+      description: video.description,
+      createdAt: video.createdAt,
+      updatedAt: video.updatedAt,
+      user: video.user,
+      status: video.status,
+      version: video.version,
+    }));
+
+    res.json({
+      status: "success",
+      data: {
+        videos: transformedVideos,
+        total,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Error fetching videos:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Error fetching videos",
+    });
+  }
+};
+
 module.exports = {
   checkTitle,
   uploadVideo,
-  getAllVideos,
   deleteVideo,
   updateVideo,
   updateVideoFile,
   updateThumbnail,
   bulkDeleteVideos,
   updateAllVideoData,
+  getVideos,
 };

@@ -11,6 +11,7 @@ const {
   bulkDeleteVideos,
   updateAllVideoData,
   verifyVideoExists,
+  getVideos,
 } = require("../controllers/video.controller");
 const auth = require("../middleware/auth.middleware");
 const upload = require("../middleware/upload.middleware");
@@ -30,7 +31,7 @@ router.put("/:id/update-all", upload.videoAndThumbnail, updateAllVideoData);
 router.post("/bulk-delete", bulkDeleteVideos);
 router.post("/check-title", checkTitle);
 router.post("/upload", upload.videoAndThumbnail, uploadVideo);
-router.get("/", getAllVideos);
+router.get("/", getVideos);
 
 // Single video operations
 router.delete("/:id", deleteVideo);

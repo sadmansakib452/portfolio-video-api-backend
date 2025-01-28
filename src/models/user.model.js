@@ -24,6 +24,18 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false, // Changed to false for normal users
     },
+    isSuperAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    resetPasswordToken: {
+      type: String,
+      default: null
+    },
+    resetPasswordExpires: {
+      type: Date,
+      default: null
+    }
   },
   {
     timestamps: true,
@@ -40,6 +52,11 @@ userSchema.pre("save", async function (next) {
 // Method to compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
+};
+
+// Add method to check if user is super admin
+userSchema.methods.isSuperAdminUser = function () {
+  return this.isSuperAdmin === true;
 };
 
 const User = mongoose.model("User", userSchema);

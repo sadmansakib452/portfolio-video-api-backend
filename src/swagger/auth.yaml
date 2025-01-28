@@ -1,0 +1,104 @@
+# Add to existing auth.yaml or create new one
+/api/auth/reset-password/request:
+  post:
+    tags:
+      - Authentication
+    summary: Request password reset for admin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - email
+            properties:
+              email:
+                type: string
+                format: email
+                example: "admin@example.com"
+    responses:
+      200:
+        description: Reset email sent successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                message:
+                  type: string
+                  example: "Password reset email sent"
+      404:
+        description: Admin not found
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      400:
+        description: Invalid email format
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      429:
+        description: Too many reset attempts
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "error"
+                message:
+                  type: string
+                  example: "Too many reset attempts. Please try again in an hour."
+
+/api/auth/reset-password/{token}:
+  post:
+    tags:
+      - Authentication
+    summary: Reset admin password with token
+    parameters:
+      - in: path
+        name: token
+        required: true
+        schema:
+          type: string
+        description: Reset password token
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - password
+            properties:
+              password:
+                type: string
+                format: password
+                example: "newpassword123"
+    responses:
+      200:
+        description: Password reset successful
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: "success"
+                message:
+                  type: string
+                  example: "Password reset successful"
+      400:
+        description: Invalid or expired token
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error" 
