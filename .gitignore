@@ -1,6 +1,6 @@
 node_modules
 .env
-uploads/*
-!uploads/videos/.gitkeep
-!uploads/thumbnails/.gitkeep
-!uploads/branLogoFiles/.gitkeep
+# uploads/*
+# !uploads/videos/.gitkeep
+# !uploads/thumbnails/.gitkeep
+# !uploads/branLogoFiles/.gitkeep
