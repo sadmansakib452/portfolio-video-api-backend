@@ -20,7 +20,7 @@ router.get("/videos", async (req, res) => {
       description: video.description,
       slug: video.slug,
       thumbnailUrl: `${SERVER_URL}/uploads/thumbnails/${video.thumbnailFile.filename}`,
-      brandLogoUrl: `${SERVER_URL}/uploads/brandlogos/${video.brandLogoFile.filename}`,
+      brandLogoUrl: `${SERVER_URL}/uploads/brandLogos/${video.brandLogoFile.filename}`,
       videoUrl: `${SERVER_URL}/uploads/videos/${video.videoFile.filename}`,
       createdAt: video.createdAt,
       updatedAt: video.updatedAt,
