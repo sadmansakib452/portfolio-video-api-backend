@@ -8,6 +8,7 @@ const {
   updateVideo,
   updateVideoFile,
   updateThumbnail,
+  updateBrandLogo,
   bulkDeleteVideos,
   updateAllVideoData,
   verifyVideoExists,
@@ -38,6 +39,7 @@ router.delete("/:id", deleteVideo);
 router.patch("/:id", updateVideo);
 router.put("/:id/video", upload.video, updateVideoFile);
 router.put("/:id/thumbnail", upload.thumbnail, updateThumbnail);
+router.put("/:id/brandLogo", upload.brandLogo, updateBrandLogo);
 
 // Stream video
 router.get("/stream/:id", async (req, res) => {

@@ -3,3 +3,4 @@ node_modules
 uploads/*
 !uploads/videos/.gitkeep
 !uploads/thumbnails/.gitkeep
+!uploads/branLogoFiles/.gitkeep

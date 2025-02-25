@@ -6,7 +6,7 @@ const Video = require("../models/video.model");
 
 // Ensure upload directories exist
 const createUploadDirs = () => {
-  const dirs = ["uploads/videos", "uploads/thumbnails"];
+  const dirs = ["uploads/videos", "uploads/thumbnails", "uploads/brandLogoFiles"];
   dirs.forEach((dir) => {
     if (!fs.existsSync(dir)) {
       console.log(`📁 Checking directory: ${dir}`);
@@ -30,6 +30,9 @@ const storage = multer.diskStorage({
     } else if (file.fieldname === "thumbnail") {
       console.log(`🖼️ Storing thumbnail in uploads/thumbnails`);
       cb(null, "uploads/thumbnails");
+    } else if (file.fieldname === "brandLogo") {
+      console.log(`🖼️ Storing brand logo file in uploads/brandLogos`);
+      cb(null, "uploads/brandLogos");
     } else {
       console.log(`❌ Unknown field: ${file.fieldname}`);
       cb(new Error(`Unknown field: ${file.fieldname}`));
@@ -119,6 +122,24 @@ const fileFilter = (req, file, cb) => {
         new Error(`Invalid image format. Allowed types: JPEG, PNG, WebP, GIF`)
       );
     }
+  } else if (file.fieldname === "brandLogo") {
+    // Allow common image formats
+    const allowedImageTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/gif",
+    ];
+
+    if (allowedImageTypes.includes(file.mimetype)) {
+      console.log(`✅ Valid Logo file`);
+      cb(null, true);
+    } else {
+      console.log(`❌ Invalid Logo type: ${file.mimetype}`);
+      cb(
+        new Error(`Invalid image format. Allowed types: JPEG, PNG, WebP, GIF`)
+      );
+    }
   } else {
     console.log(`❌ Unknown field: ${file.fieldname}`);
     cb(new Error(`Unknown field: ${file.fieldname}`));
@@ -131,8 +152,8 @@ const uploadMiddleware = multer({
   fileFilter: fileFilter,
   limits: {
     fileSize: Infinity, // No file size limit
-    files: 2, // Allow max 2 files (video + thumbnail)
-    fields: 10, // Allow max 10 fields
+    files: 3, // Allow max 2 files (video + thumbnail + brandLogo)
+    fields: 100, // Allow max 10 fields
   },
 });
 
@@ -148,8 +169,9 @@ const logMulterFields = (req, res, next) => {
 const validateFileSize = (req, res, next) => {
   if (!req.files) return next();
 
-  const maxVideoSize = 2 * 1024 * 1024 * 1024; // 2GB
-  const maxThumbnailSize = 10 * 1024 * 1024; // 10MB
+  const maxVideoSize = 5 * 1024 * 1024 * 1024; // 5GB
+  const maxThumbnailSize = 20 * 1024 * 1024; // 20MB
+  const maxBrandLogoSize = 20 * 1024 * 1024; // 20MB
 
   if (req.files.video && req.files.video[0].size > maxVideoSize) {
     return res.status(400).json({
@@ -165,6 +187,15 @@ const validateFileSize = (req, res, next) => {
       status: "error",
       message: `Thumbnail file too large. Maximum size is ${formatBytes(
         maxThumbnailSize
+      )}`,
+    });
+  }
+
+  if (req.files.brandLogo && req.files.brandLogo[0].size > maxBrandLogoSize) {
+    return res.status(400).json({
+      status: "error",
+      message: `Brand Logo file too large. Maximum size is ${formatBytes(
+        maxBrandLogoSize
       )}`,
     });
   }
@@ -186,12 +217,13 @@ const formatBytes = (bytes, decimals = 2) => {
 };
 
 const upload = {
-  // For multiple fields (video + thumbnail)
+  // For multiple fields (video + thumbnail + brandLogo)
   videoAndThumbnail: [
     logMulterFields,
     uploadMiddleware.fields([
       { name: "video", maxCount: 1 },
       { name: "thumbnail", maxCount: 1 },
+      { name: "brandLogo", maxCount: 1 },
     ]),
     validateFileSize,
   ],
@@ -203,6 +235,12 @@ const upload = {
   thumbnail: [
     logMulterFields,
     uploadMiddleware.single("thumbnail"),
+    validateFileSize,
+  ],
+  // For single brandLogo file
+  brandLogo: [
+    logMulterFields,
+    uploadMiddleware.single("brandLogo"),
     validateFileSize,
   ],
 };

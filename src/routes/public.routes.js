@@ -1,5 +1,6 @@
 const express = require("express");
 const Video = require("../models/video.model");
+const { brandLogo } = require("../middleware/upload.middleware");
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:5000";
 const router = express.Router();
 
@@ -8,7 +9,8 @@ router.get("/videos", async (req, res) => {
   try {
     const videos = await Video.find()
       .select(
-        "title description videoFile thumbnailFile slug createdAt updatedAt"
+        "title description videoFile thumbnailFile brandLogoFile slug createdAt updatedAt"
+      
       )
       .lean();
 
@@ -18,6 +20,7 @@ router.get("/videos", async (req, res) => {
       description: video.description,
       slug: video.slug,
       thumbnailUrl: `${SERVER_URL}/uploads/thumbnails/${video.thumbnailFile.filename}`,
+      brandLogoUrl: `${SERVER_URL}/uploads/brandlogos/${video.brandLogoFile.filename}`,
       videoUrl: `${SERVER_URL}/uploads/videos/${video.videoFile.filename}`,
       createdAt: video.createdAt,
       updatedAt: video.updatedAt,

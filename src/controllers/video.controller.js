@@ -4,6 +4,7 @@ const Video = require("../models/video.model");
 const { createFilePaths, generateSlug } = require("../utils/file.utils");
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:5000";
 const mongoose = require("mongoose");
+const { brandLogo } = require("../middleware/upload.middleware");
 
 // Check if title is available
 const checkTitle = async (req, res) => {
@@ -50,6 +51,7 @@ const uploadVideo = async (req, res) => {
       await Promise.all([
         fs.unlink(req.files.video[0].path),
         fs.unlink(req.files.thumbnail[0].path),
+        fs.unlink(req.files.brandLogo?.[0]?.path),
       ]);
 
       return res.status(400).json({
@@ -72,6 +74,11 @@ const uploadVideo = async (req, res) => {
         filename: req.files.thumbnail[0].filename,
         size: req.files.thumbnail[0].size,
         mimetype: req.files.thumbnail[0].mimetype,
+      },
+      brandLogoFile: {
+        filename: req.files.brandLogo?.[0]?.filename || "default.png",
+        size: req.files.brandLogo?.[0]?.size || 0,
+        mimetype: req.files.brandLogo?.[0]?.mimetype || "image/png",
       },
       user: req.user._id,
     });
@@ -118,8 +125,16 @@ const generateFileUrls = (video) => {
   if (!video) return null;
 
   // Pick only the fields we want to return
-  const { _id, title, slug, description, videoFile, thumbnailFile, version } =
-    video;
+  const {
+    _id,
+    title,
+    slug,
+    description,
+    videoFile,
+    thumbnailFile,
+    brandLogoFile,
+    version,
+  } = video;
 
   return {
     _id,
@@ -129,9 +144,13 @@ const generateFileUrls = (video) => {
     version,
     videoFile,
     thumbnailFile,
+    brandLogoFile,
     // Dynamically generate URLs using SERVER_URL
     videoUrl: `${SERVER_URL}/uploads/videos/${videoFile.filename}`,
     thumbnailUrl: `${SERVER_URL}/uploads/thumbnails/${thumbnailFile.filename}`,
+    brandLogoUrl: `${SERVER_URL}/uploads/brandLogos/${
+      brandLogoFile?.filename || "default.png"
+    }`,
   };
 };
 
@@ -160,6 +179,9 @@ const deleteVideo = async (req, res) => {
       await fs.unlink(path.join("uploads", "videos", video.videoFile.filename));
       await fs.unlink(
         path.join("uploads", "thumbnails", video.thumbnailFile.filename)
+      );
+      await fs.unlink(
+        path.join("uploads", "brandLogos", video.brandLogoFile.filename)
       );
     } catch (error) {
       console.error("❌ Error deleting files:", error);
@@ -361,6 +383,68 @@ const updateThumbnail = async (req, res) => {
   }
 };
 
+// Update brandlogo
+const updateBrandLogo = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({
+        status: "error",
+        message: "No brandlogo file provided",
+      });
+    }
+
+    const video = await Video.findById(id);
+    if (!video) {
+      // Clean up uploaded file
+      await fs.unlink(req.file.path);
+      return res.status(404).json({
+        status: "error",
+        message: "Video not found",
+      });
+    }
+
+    // Delete old brandlogo
+    try {
+      await fs.unlink(
+        path.join("uploads", "brandLogos", video.brandLogoFile.filename)
+      );
+    } catch (error) {
+      console.error("❌ Error deleting old brandlogo:", error);
+    }
+
+    // Update thumbnail info
+    video.brandLogoFile = {
+      filename: req.file.filename,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+    };
+
+    await video.save();
+    const videoWithUrls = generateFileUrls(video.toObject());
+
+    res.json({
+      status: "success",
+      data: { video: videoWithUrls },
+    });
+  } catch (error) {
+    console.error("❌ Update brandlogo error:", error);
+    // Clean up uploaded file in case of error
+    if (req.file) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (cleanupError) {
+        console.error("❌ Error cleaning up file:", cleanupError);
+      }
+    }
+    res.status(400).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+};
+
 // Add this new method for bulk delete
 const bulkDeleteVideos = async (req, res) => {
   try {
@@ -405,7 +489,8 @@ const bulkDeleteVideos = async (req, res) => {
     const filesToDelete = videos.reduce((acc, video) => {
       acc.push(
         path.join("uploads", "videos", video.videoFile.filename),
-        path.join("uploads", "thumbnails", video.thumbnailFile.filename)
+        path.join("uploads", "thumbnails", video.thumbnailFile.filename),
+        path.join("uploads", "brandLogos", video.brandLogoFile.filename)
       );
       return acc;
     }, []);
@@ -465,9 +550,13 @@ const verifyVideoExists = async (videoId) => {
 // Update the updateAllVideoData function
 const updateAllVideoData = async (req, res) => {
   try {
+    console.log("brandLogo", req.files.brandLogo);
+
     const { id } = req.params;
     const { title, description } = req.body;
-    const hasFiles = req.files && (req.files.video || req.files.thumbnail);
+    const hasFiles =
+      req.files &&
+      (req.files.video || req.files.thumbnail || req.files.brandLogo);
 
     // Check if any data is provided for update
     if (!title && !description && !hasFiles) {
@@ -506,6 +595,7 @@ const updateAllVideoData = async (req, res) => {
         description: Boolean(description),
         video: Boolean(req.files?.video),
         thumbnail: Boolean(req.files?.thumbnail),
+        brandLogo: Boolean(req.files?.brandLogo),
       },
     });
 
@@ -577,6 +667,25 @@ const updateAllVideoData = async (req, res) => {
       };
     }
 
+    // Update brandlogo if provided
+    if (req.files?.brandLogo?.[0]) {
+      try {
+        // Delete old thumbnail file
+        await fs.unlink(
+          path.join("uploads", "brandLogos", video.brandLogoFile.filename)
+        );
+      } catch (error) {
+        console.error("❌ Error deleting old brandLogo file:", error);
+      }
+
+      // Update thumbnail info
+      video.brandLogoFile = {
+        filename: req.files.brandLogo[0].filename,
+        size: req.files.brandLogo[0].size,
+        mimetype: req.files.brandLogo[0].mimetype,
+      };
+    }
+
     // Increment version
     video.version += 1;
     await video.save();
@@ -595,6 +704,8 @@ const updateAllVideoData = async (req, res) => {
         if (req.files.video?.[0]) await fs.unlink(req.files.video[0].path);
         if (req.files.thumbnail?.[0])
           await fs.unlink(req.files.thumbnail[0].path);
+        if (req.files.brandLogo?.[0])
+          await fs.unlink(req.files.brandLogo[0].path);
       } catch (cleanupError) {
         console.error("❌ Error cleaning up files:", cleanupError);
       }
@@ -625,6 +736,9 @@ const getVideos = async (req, res) => {
       title: video.title,
       videoUrl: `${process.env.SERVER_URL}/uploads/videos/${video.videoFile.filename}`,
       thumbnailUrl: `${process.env.SERVER_URL}/uploads/thumbnails/${video.thumbnailFile.filename}`,
+      brandLogoUrl: video.brandLogoFile
+        ? `${process.env.SERVER_URL}/uploads/brandLogos/${video.brandLogoFile.filename}`
+        : `${process.env.SERVER_URL}/uploads/brandLogos/default.png`,
       description: video.description,
       createdAt: video.createdAt,
       updatedAt: video.updatedAt,
@@ -647,7 +761,7 @@ const getVideos = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("Error fetching videos:", error);
+    console.error("Error fetching videos:", error);
     res.status(500).json({
       status: "error",
       message: "Error fetching videos",
@@ -662,6 +776,7 @@ module.exports = {
   updateVideo,
   updateVideoFile,
   updateThumbnail,
+  updateBrandLogo,
   bulkDeleteVideos,
   updateAllVideoData,
   getVideos,

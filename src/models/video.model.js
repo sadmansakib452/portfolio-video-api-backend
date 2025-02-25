@@ -30,6 +30,11 @@ const videoSchema = new mongoose.Schema(
       size: Number,
       mimetype: String,
     },
+    brandLogoFile: {
+      filename: String,
+      size: Number,
+      mimetype: String,
+    },
     version: {
       type: Number,
       default: 1,
