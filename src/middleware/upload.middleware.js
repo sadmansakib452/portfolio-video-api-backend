@@ -6,7 +6,7 @@ const Video = require("../models/video.model");
 
 // Ensure upload directories exist
 const createUploadDirs = () => {
-  const dirs = ["uploads/videos", "uploads/thumbnails", "uploads/brandLogoFiles"];
+  const dirs = ["uploads/videos", "uploads/thumbnails", "uploads/brandLogos"];
   dirs.forEach((dir) => {
     if (!fs.existsSync(dir)) {
       console.log(`📁 Checking directory: ${dir}`);
