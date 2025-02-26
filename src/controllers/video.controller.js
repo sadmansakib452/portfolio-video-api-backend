@@ -211,11 +211,20 @@ const updateVideo = async (req, res) => {
     const { title, description } = req.body;
 
     // Find video and check ownership
-    const video = await Video.findOne({ _id: id, user: req.user._id });
+    // const video = await Video.findOne({ _id: id, user: req.user._id });
+    // if (!video) {
+    //   return res.status(404).json({
+    //     status: "error",
+    //     message: "Video not found or unauthorized",
+    //   });
+    // }
+
+    // Find video without user check
+    const video = await Video.findById(id);
     if (!video) {
       return res.status(404).json({
         status: "error",
-        message: "Video not found or unauthorized",
+        message: "Video not found",
       });
     }
 
